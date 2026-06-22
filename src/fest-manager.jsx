@@ -843,7 +843,7 @@ const LeaderPortal = ({ group, dark, setDark, onBack }) => {
 };
 
 // ─── ADMIN PORTAL ─────────────────────────────────────────────────────────────
-const AdminPortal = ({ dark, onBack }) => {
+const AdminPortal = ({ dark, setDark, onBack }) => {
   const { groups, programs, setPrograms, students, registrations } = useApp();
   const [view, setView] = useState("students"); // students | programs
   const [activeGroup, setActiveGroup] = useState(groups[0]?.id);

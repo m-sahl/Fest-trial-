@@ -25,15 +25,15 @@ const INITIAL_PROGRAMS = [
 
 const INITIAL_STUDENTS = {
   g1: [
-    { id: "s1", name: "Arjun Nair", category: "Senior", chestNo: "SR-101" },
-    { id: "s2", name: "Priya Menon", category: "Junior", chestNo: "JR-101" },
+    { id: "s1", name: "Arjun Nair", category: "Senior", chestNo: "301" },
+    { id: "s2", name: "Priya Menon", category: "Junior", chestNo: "201" },
   ],
   g2: [
-    { id: "s3", name: "Rohan Das", category: "Senior", chestNo: "SR-201" },
-    { id: "s4", name: "Sneha Pillai", category: "Sub-Junior", chestNo: "SJ-201" },
+    { id: "s3", name: "Rohan Das", category: "Senior", chestNo: "302" },
+    { id: "s4", name: "Sneha Pillai", category: "Sub-Junior", chestNo: "101" },
   ],
   g3: [
-    { id: "s5", name: "Kavya Iyer", category: "Junior", chestNo: "JR-301" },
+    { id: "s5", name: "Kavya Iyer", category: "Junior", chestNo: "202" },
   ],
 };
 
@@ -61,6 +61,8 @@ const icons = {
   moon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
   bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
   info: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+  printer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
+  download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
   palette: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
 };
 
@@ -714,6 +716,251 @@ const LeaderPortal = ({ group, dark, setDark, onBack }) => {
 };
 
 // ─── ADMIN PORTAL ─────────────────────────────────────────────────────────────
+
+// ─── PRINT SECTION ────────────────────────────────────────────────────────────
+const PrintSection = ({ dark }) => {
+  const { programs, students, registrations, groups } = useApp();
+  const [sheet, setSheet] = useState("chest");   // chest | name | code
+  const [selProg, setSelProg] = useState(programs[0]?.id || "");
+  const printRef = useRef(null);
+
+  // Build participant list for selected program
+  const prog = programs.find(p => p.id === selProg);
+  const getParticipants = () => {
+    const regs = registrations.filter(r => r.programId === selProg);
+    return regs.flatMap(r => {
+      const grp = groups.find(g => g.id === r.groupId);
+      const grpStudents = students[r.groupId] || [];
+      return r.participantIds.map(id => {
+        const s = grpStudents.find(st => st.id === id);
+        return s ? { ...s, groupName: grp?.name, groupColor: grp?.color } : null;
+      }).filter(Boolean);
+    });
+  };
+
+  const participants = getParticipants();
+  const byChest = [...participants].sort((a, b) => parseInt(a.chestNo) - parseInt(b.chestNo));
+  const byName  = [...participants].sort((a, b) => a.name.localeCompare(b.name));
+  const criteria = prog?.criteria?.filter(Boolean) || ["Criteria 1", "Criteria 2"];
+
+  const handlePrint = () => {
+    const style = document.createElement("style");
+    style.innerHTML = `
+      @media print {
+        body > * { display: none !important; }
+        #print-area { display: block !important; }
+        #print-area { font-family: 'Times New Roman', serif; color: #000; background: #fff; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #333; padding: 7px 10px; font-size: 13px; }
+        th { background: #f0f0f0; font-weight: bold; }
+        h2 { font-size: 18px; margin-bottom: 4px; }
+        p { font-size: 12px; margin-bottom: 14px; color: #555; }
+        .code-col { width: 60px; text-align: center; font-weight: bold; font-size: 15px; }
+        .blank-col { min-width: 80px; }
+      }
+    `;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => document.head.removeChild(style), 1000);
+  };
+
+  const sheetBtns = [
+    { id: "chest", label: "By Chest No." },
+    { id: "name",  label: "By Name" },
+    { id: "code",  label: "Code Letter" },
+  ];
+
+  const cellStyle = { border: "1.5px solid", borderColor: dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.15)", padding: "10px 14px", fontSize: 13.5 };
+  const headStyle = { ...cellStyle, background: dark ? "rgba(108,99,255,0.12)" : "rgba(108,99,255,0.07)", fontWeight: 700, fontSize: 11.5, letterSpacing: 0.7, textTransform: "uppercase", color: dark ? "#a78bfa" : "#6c63ff" };
+  const blankCell = { ...cellStyle, background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)", minWidth: 80 };
+
+  return (
+    <div className="anim-fadeUp">
+      {/* Controls */}
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+          <div className="ff-display fw-800" style={{ fontSize: 16 }}>Print Sheets</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={handlePrint} style={{ gap: 6 }}><Ic name="printer" size={13} />Print</button>
+          </div>
+        </div>
+
+        {/* Sheet type tabs */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 16, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, padding: 4 }}>
+          {sheetBtns.map(s => (
+            <button key={s.id} onClick={() => setSheet(s.id)}
+              className="btn btn-sm"
+              style={{ flex: 1, justifyContent: "center", background: sheet === s.id ? "linear-gradient(135deg,#6c63ff,#8b5cf6)" : "transparent", color: sheet === s.id ? "white" : (dark ? "#9ca3af" : "#6b7280"), boxShadow: sheet === s.id ? "0 4px 14px rgba(108,99,255,0.35)" : "none" }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Program selector */}
+        <div>
+          <label className="label">Program</label>
+          <select className="input select" value={selProg} onChange={e => setSelProg(e.target.value)}>
+            <option value="">— Select a program —</option>
+            {programs.map(p => <option key={p.id} value={p.id}>{p.name} ({p.category} · {p.type})</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Sheet preview */}
+      {selProg && (
+        <div id="print-area">
+          {/* ── Sheet 1: By Chest Number ── */}
+          {sheet === "chest" && (
+            <div className="card anim-scaleIn" style={{ padding: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <div className="ff-display fw-800" style={{ fontSize: 18 }}>{prog?.name} — Call List</div>
+                <div className="text-muted" style={{ fontSize: 13, marginTop: 3 }}>{prog?.category} · {prog?.type} · Sorted by Chest Number</div>
+              </div>
+              {participants.length === 0
+                ? <div className="text-muted" style={{ textAlign: "center", padding: "32px 0", fontSize: 13 }}>No participants registered for this program yet.</div>
+                : <div className="tbl-wrap">
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={headStyle}>Chest No.</th>
+                          <th style={headStyle}>Participant Name</th>
+                          <th style={headStyle}>Group</th>
+                          <th style={headStyle}>Category</th>
+                          <th style={{ ...headStyle, textAlign: "center" }}>Attendance ✓</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {byChest.map((p, i) => (
+                          <tr key={i} style={{ background: i % 2 === 0 ? (dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)") : "transparent" }}>
+                            <td style={{ ...cellStyle, fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 16, color: ACCENT }}>{p.chestNo}</td>
+                            <td style={{ ...cellStyle, fontWeight: 600 }}>{p.name}</td>
+                            <td style={cellStyle}>
+                              <span className="chip" style={{ background: `${p.groupColor}20`, color: p.groupColor }}>{p.groupName}</span>
+                            </td>
+                            <td style={cellStyle}><span className={`badge badge-${p.category === "Sub-Junior" ? "sj" : p.category.toLowerCase()}`}>{p.category}</span></td>
+                            <td style={{ ...cellStyle, textAlign: "center" }}>
+                              <div style={{ width: 22, height: 22, border: `2px solid ${dark ? "rgba(108,99,255,0.4)" : "rgba(108,99,255,0.5)"}`, borderRadius: 6, margin: "0 auto" }} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+              }
+              <div className="text-muted" style={{ fontSize: 11, marginTop: 14, textAlign: "right" }}>
+                Total: {participants.length} participant{participants.length !== 1 ? "s" : ""} · FF Fest Management
+              </div>
+            </div>
+          )}
+
+          {/* ── Sheet 2: By Name ── */}
+          {sheet === "name" && (
+            <div className="card anim-scaleIn" style={{ padding: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <div className="ff-display fw-800" style={{ fontSize: 18 }}>{prog?.name} — Call List</div>
+                <div className="text-muted" style={{ fontSize: 13, marginTop: 3 }}>{prog?.category} · {prog?.type} · Sorted by Name</div>
+              </div>
+              {participants.length === 0
+                ? <div className="text-muted" style={{ textAlign: "center", padding: "32px 0", fontSize: 13 }}>No participants registered for this program yet.</div>
+                : <div className="tbl-wrap">
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={headStyle}>Sl.</th>
+                          <th style={headStyle}>Participant Name</th>
+                          <th style={headStyle}>Chest No.</th>
+                          <th style={headStyle}>Group</th>
+                          <th style={headStyle}>Category</th>
+                          <th style={{ ...headStyle, textAlign: "center" }}>Attendance ✓</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {byName.map((p, i) => (
+                          <tr key={i} style={{ background: i % 2 === 0 ? (dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)") : "transparent" }}>
+                            <td style={{ ...cellStyle, color: dark ? "#6b7280" : "#9ca3af", fontSize: 13 }}>{i + 1}</td>
+                            <td style={{ ...cellStyle, fontWeight: 700 }}>{p.name}</td>
+                            <td style={{ ...cellStyle, fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 15, color: ACCENT }}>{p.chestNo}</td>
+                            <td style={cellStyle}>
+                              <span className="chip" style={{ background: `${p.groupColor}20`, color: p.groupColor }}>{p.groupName}</span>
+                            </td>
+                            <td style={cellStyle}><span className={`badge badge-${p.category === "Sub-Junior" ? "sj" : p.category.toLowerCase()}`}>{p.category}</span></td>
+                            <td style={{ ...cellStyle, textAlign: "center" }}>
+                              <div style={{ width: 22, height: 22, border: `2px solid ${dark ? "rgba(108,99,255,0.4)" : "rgba(108,99,255,0.5)"}`, borderRadius: 6, margin: "0 auto" }} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+              }
+              <div className="text-muted" style={{ fontSize: 11, marginTop: 14, textAlign: "right" }}>
+                Total: {participants.length} participant{participants.length !== 1 ? "s" : ""} · FF Fest Management
+              </div>
+            </div>
+          )}
+
+          {/* ── Sheet 3: Code Letter (Judges) ── */}
+          {sheet === "code" && (
+            <div className="card anim-scaleIn" style={{ padding: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <div className="ff-display fw-800" style={{ fontSize: 18 }}>{prog?.name} — Judges' Sheet</div>
+                <div className="text-muted" style={{ fontSize: 13, marginTop: 3 }}>{prog?.category} · {prog?.type} · Anonymized · For Judge Use Only</div>
+              </div>
+              <div style={{ background: dark ? "rgba(251,191,36,0.08)" : "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: "#d97706", marginBottom: 16 }}>
+                ⚠️ This sheet is confidential. Code letters are assigned randomly. Do not share participant identities with judges.
+              </div>
+              {participants.length === 0
+                ? <div className="text-muted" style={{ textAlign: "center", padding: "32px 0", fontSize: 13 }}>No participants registered for this program yet.</div>
+                : <div className="tbl-wrap">
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ ...headStyle, textAlign: "center", width: 60 }}>Code</th>
+                          {criteria.map((c, i) => (
+                            <th key={i} style={{ ...headStyle, textAlign: "center" }}>{c} <span style={{ opacity: 0.6 }}>(/ 10)</span></th>
+                          ))}
+                          <th style={{ ...headStyle, textAlign: "center" }}>Total <span style={{ opacity: 0.6 }}>({criteria.length * 10})</span></th>
+                          <th style={{ ...headStyle }}>Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {byChest.map((_, i) => (
+                          <tr key={i} style={{ background: i % 2 === 0 ? (dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)") : "transparent" }}>
+                            <td style={{ ...cellStyle, textAlign: "center" }}>
+                              <span style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 900, fontSize: 20, background: "linear-gradient(135deg,#6c63ff,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                                {String.fromCharCode(65 + i)}
+                              </span>
+                            </td>
+                            {criteria.map((_, ci) => (
+                              <td key={ci} style={{ ...blankCell, textAlign: "center" }}></td>
+                            ))}
+                            <td style={{ ...blankCell, textAlign: "center" }}></td>
+                            <td style={{ ...blankCell, minWidth: 140 }}></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+              }
+              <div className="text-muted" style={{ fontSize: 11, marginTop: 14, textAlign: "right" }}>
+                {participants.length} entries · FF Fest Management · Confidential
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!selProg && (
+        <div className="card" style={{ padding: 40, textAlign: "center" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🖨️</div>
+          <div className="ff-display fw-800" style={{ marginBottom: 6 }}>Select a Program</div>
+          <div className="text-muted" style={{ fontSize: 13 }}>Choose a program above to preview and print sheets.</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AdminPortal = ({ dark, setDark, onBack }) => {
   const { groups, programs, setPrograms, students, setStudents, registrations } = useApp();
   const [view, setView] = useState("students"); // students | programs
@@ -724,12 +971,14 @@ const AdminPortal = ({ dark, setDark, onBack }) => {
 
   const [stuModal, setStuModal] = useState(false);
   const [stuForm, setStuForm] = useState({ name: "", category: "Senior" });
-  const catPrefix = { "Sub-Junior": "SJ", "Junior": "JR", "Senior": "SR" };
-  const groupIdx = (gid) => ({ g1: 1, g2: 2, g3: 3 }[gid] || 1);
+  const catBase = { "Sub-Junior": 100, "Junior": 200, "Senior": 300 };
   const saveStudent = () => {
     if (!stuForm.name.trim()) return;
-    const cnt = (students[activeGroup] || []).filter(s => s.category === stuForm.category).length + 1;
-    const chest = `${catPrefix[stuForm.category]}-${groupIdx(activeGroup) * 100 + cnt}`;
+    const allInCat = Object.values(students).flat().filter(s => s.category === stuForm.category);
+    const usedNums = allInCat.map(s => parseInt(s.chestNo)).filter(n => !isNaN(n));
+    let next = catBase[stuForm.category] + 1;
+    while (usedNums.includes(next)) next++;
+    const chest = String(next);
     const newS = { id: "s" + Date.now(), name: stuForm.name, category: stuForm.category, chestNo: chest };
     setStudents(prev => ({ ...prev, [activeGroup]: [...(prev[activeGroup] || []), newS] }));
     setStuForm({ name: "", category: "Senior" });
@@ -763,6 +1012,7 @@ const AdminPortal = ({ dark, setDark, onBack }) => {
         right={<div className="admin-nav">
           <button className="btn btn-sm" style={{ background: view === "students" ? "linear-gradient(135deg,#6c63ff,#8b5cf6)" : (dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"), color: view === "students" ? "white" : (dark ? "#9ca3af" : "#6b7280") }} onClick={() => setView("students")}><Ic name="users" size={12} />Students</button>
           <button className="btn btn-sm" style={{ background: view === "programs" ? "linear-gradient(135deg,#6c63ff,#8b5cf6)" : (dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"), color: view === "programs" ? "white" : (dark ? "#9ca3af" : "#6b7280") }} onClick={() => setView("programs")}><Ic name="book" size={12} />Programs</button>
+          <button className="btn btn-sm" style={{ background: view === "print" ? "linear-gradient(135deg,#6c63ff,#8b5cf6)" : (dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"), color: view === "print" ? "white" : (dark ? "#9ca3af" : "#6b7280") }} onClick={() => setView("print")}><Ic name="printer" size={12} />Print</button>
         </div>}
       />
 
@@ -903,6 +1153,9 @@ const AdminPortal = ({ dark, setDark, onBack }) => {
           </>
         )}
       </div>
+
+
+        {view === "print" && <PrintSection dark={dark} />}
 
       {stuModal && (
         <Modal title="Add Student" onClose={() => setStuModal(false)}>

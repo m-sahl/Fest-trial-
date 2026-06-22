@@ -56,6 +56,12 @@ const icons = {
   lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
   shield: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
   music: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+  settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+  sun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
+  moon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
+  bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+  info: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+  palette: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
 };
 
 const Ic = ({ name, size = 16 }) => (
@@ -250,8 +256,8 @@ const Modal = ({ title, onClose, children, wide }) => (
   </div>
 );
 
-// ─── PIN MODAL ────────────────────────────────────────────────────────────────
-const PinModal = ({ title, subtitle, onSuccess, onClose, correctPin, dark }) => {
+// ─── NUMERIC PIN MODAL (for leaders) ─────────────────────────────────────────
+const NumPinModal = ({ title, subtitle, onSuccess, onClose, correctPin, dark }) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [shaking, setShaking] = useState(false);
@@ -264,27 +270,23 @@ const PinModal = ({ title, subtitle, onSuccess, onClose, correctPin, dark }) => 
       setTimeout(() => {
         if (next === correctPin) onSuccess();
         else {
-          setShaking(true);
-          setError(true);
+          setShaking(true); setError(true);
           setTimeout(() => { setPin(""); setError(false); setShaking(false); }, 700);
         }
       }, 120);
     }
   };
   const del = () => setPin(p => p.slice(0, -1));
-
   const keys = [1,2,3,4,5,6,7,8,9,"del",0,"ok"];
 
   return (
     <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 340, textAlign: "center" }}>
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 16, background: "linear-gradient(135deg,#6c63ff,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-            <Ic name="lock" size={22} />
-          </div>
-          <div className="ff-display fw-800" style={{ fontSize: 18, marginBottom: 5 }}>{title}</div>
-          <div className="text-muted" style={{ fontSize: 13 }}>{subtitle}</div>
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: "linear-gradient(135deg,#6c63ff,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+          <Ic name="lock" size={22} />
         </div>
+        <div className="ff-display fw-800" style={{ fontSize: 18, marginBottom: 5 }}>{title}</div>
+        <div className="text-muted" style={{ fontSize: 13, marginBottom: 4 }}>{subtitle}</div>
         <div style={{ display: "flex", justifyContent: "center", gap: 10, margin: "22px 0", animation: shaking ? "shake 0.4s ease" : "none" }}>
           {Array.from({ length: correctPin.length }).map((_, i) => (
             <div key={i} className={`pin-dot ${i < pin.length ? (error ? "error" : "filled") : ""}`} />
@@ -292,8 +294,8 @@ const PinModal = ({ title, subtitle, onSuccess, onClose, correctPin, dark }) => 
         </div>
         <div className="numpad" style={{ maxWidth: 260, margin: "0 auto" }}>
           {keys.map((k, i) => {
-            if (k === "del") return <button key={i} className="numpad-key" onClick={del} style={{ fontSize: 14 }}><Ic name="x" size={18} /></button>;
-            if (k === "ok") return <button key={i} className="numpad-key" onClick={() => {}} style={{ fontSize: 14, background: "linear-gradient(135deg,#6c63ff,#8b5cf6)", color: "white", border: "none" }}><Ic name="check" size={18} /></button>;
+            if (k === "del") return <button key={i} className="numpad-key" onClick={del}><Ic name="x" size={18} /></button>;
+            if (k === "ok") return <button key={i} className="numpad-key" style={{ background: "linear-gradient(135deg,#6c63ff,#8b5cf6)", color: "white", border: "none" }}><Ic name="check" size={18} /></button>;
             return <button key={i} className={`numpad-key ${k === 0 ? "zero" : ""}`} onClick={() => addDigit(String(k))}>{k}</button>;
           })}
         </div>
@@ -303,6 +305,157 @@ const PinModal = ({ title, subtitle, onSuccess, onClose, correctPin, dark }) => 
   );
 };
 
+// ─── TEXT PASSWORD MODAL (for admin) ─────────────────────────────────────────
+const TextPinModal = ({ title, subtitle, onSuccess, onClose, correctPin, dark }) => {
+  const [val, setVal] = useState("");
+  const [error, setError] = useState(false);
+  const [show, setShow] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
+
+  const attempt = () => {
+    if (val === correctPin) { onSuccess(); }
+    else {
+      setError(true);
+      setTimeout(() => { setError(false); setVal(""); inputRef.current?.focus(); }, 700);
+    }
+  };
+
+  return (
+    <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 360, textAlign: "center" }}>
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: "linear-gradient(135deg,#6c63ff,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+          <Ic name="shield" size={22} />
+        </div>
+        <div className="ff-display fw-800" style={{ fontSize: 18, marginBottom: 5 }}>{title}</div>
+        <div className="text-muted" style={{ fontSize: 13, marginBottom: 22 }}>{subtitle}</div>
+        <div style={{ position: "relative", marginBottom: 16, textAlign: "left" }}>
+          <input
+            ref={inputRef}
+            type={show ? "text" : "password"}
+            className="input"
+            value={val}
+            onChange={e => { setVal(e.target.value); setError(false); }}
+            onKeyDown={e => e.key === "Enter" && attempt()}
+            placeholder="Enter password"
+            style={{
+              textAlign: "center", fontSize: 16, letterSpacing: show ? 1 : 4,
+              borderColor: error ? "#ef4444" : undefined,
+              boxShadow: error ? "0 0 0 3px rgba(239,68,68,0.18)" : undefined,
+              animation: error ? "shake 0.4s ease" : "none",
+              paddingRight: 44,
+            }}
+          />
+          <button onClick={() => setShow(s => !s)} style={{
+            position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", cursor: "pointer",
+            color: dark ? "#6b7280" : "#9ca3af", display: "flex", alignItems: "center",
+          }}>
+            <Ic name={show ? "eyeOff" : "eye"} size={16} />
+          </button>
+        </div>
+        {error && <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 12, animation: "fadeIn 0.2s ease" }}>Incorrect password. Try again.</div>}
+        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 10 }} onClick={attempt}>
+          <Ic name="check" size={14} /> Unlock Admin Panel
+        </button>
+        <button className="btn btn-ghost" style={{ width: "100%" }} onClick={onClose}>Cancel</button>
+      </div>
+    </div>
+  );
+};
+
+// ─── SETTINGS PANEL ──────────────────────────────────────────────────────────
+const SettingsPanel = ({ dark, setDark, onClose, context }) => {
+  const sections = [
+    {
+      label: "Appearance",
+      rows: [
+        {
+          icon: dark ? "sun" : "moon",
+          label: "Theme",
+          desc: dark ? "Dark mode is on" : "Light mode is on",
+          action: (
+            <button onClick={() => setDark(d => !d)} style={{
+              width: 48, height: 26, borderRadius: 13, position: "relative", cursor: "pointer", border: "none",
+              background: dark ? "linear-gradient(135deg,#6c63ff,#8b5cf6)" : "rgba(0,0,0,0.15)",
+              transition: "background 0.3s", flexShrink: 0,
+            }}>
+              <div style={{
+                width: 20, height: 20, borderRadius: "50%", background: "white",
+                position: "absolute", top: 3, transition: "left 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+                left: dark ? 25 : 3, boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+              }} />
+            </button>
+          ),
+        },
+      ],
+    },
+    {
+      label: "About",
+      rows: [
+        { icon: "info", label: "FF Fest Manager", desc: "Version 1.0 · Arts & Cultural" },
+        { icon: "palette", label: "Built with", desc: "React + Vite · Deployed on Vercel" },
+      ],
+    },
+  ];
+
+  return (
+    <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 380 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+          <div>
+            <div className="ff-display fw-800" style={{ fontSize: 17 }}>Settings</div>
+            {context && <div className="text-muted" style={{ fontSize: 12, marginTop: 2 }}>{context}</div>}
+          </div>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}><Ic name="x" size={15} /></button>
+        </div>
+        {sections.map(s => (
+          <div key={s.label} style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: dark ? "#4b5563" : "#9ca3af", marginBottom: 8 }}>{s.label}</div>
+            <div style={{ borderRadius: 14, overflow: "hidden", border: `1px solid ${dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}` }}>
+              {s.rows.map((row, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "13px 16px",
+                  borderTop: i > 0 ? `1px solid ${dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` : "none",
+                  background: dark ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.85)",
+                }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(108,99,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: ACCENT, flexShrink: 0 }}>
+                    <Ic name={row.icon} size={16} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{row.label}</div>
+                    <div className="text-muted" style={{ fontSize: 12 }}>{row.desc}</div>
+                  </div>
+                  {row.action}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── SHARED TOPBAR ────────────────────────────────────────────────────────────
+const Topbar = ({ left, right, dark, setDark, context }) => {
+  const [settings, setSettings] = useState(false);
+  return (
+    <>
+      <div className="topbar">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>{left}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {right}
+          <button className="btn btn-ghost btn-icon" onClick={() => setSettings(true)} style={{ color: dark ? "#9ca3af" : "#6b7280" }}>
+            <Ic name="settings" size={17} />
+          </button>
+        </div>
+      </div>
+      {settings && <SettingsPanel dark={dark} setDark={setDark} onClose={() => setSettings(false)} context={context} />}
+    </>
+  );
+};
 // ─── SPLASH SCREEN ────────────────────────────────────────────────────────────
 const SplashScreen = ({ onDone }) => {
   const [phase, setPhase] = useState(0);
@@ -445,10 +598,10 @@ const LandingPage = ({ groups, dark, onLeaderLogin, onAdminClick }) => {
         </button>
       </div>
 
-      {/* Leader PIN modal */}
+      {/* Leader PIN modal (numpad) */}
       {pinGroup && (
-        <PinModal
-          title={`${pinGroup.name}`}
+        <NumPinModal
+          title={pinGroup.name}
           subtitle="Enter your group PIN to continue"
           correctPin={LEADER_PIN}
           dark={dark}
@@ -457,11 +610,11 @@ const LandingPage = ({ groups, dark, onLeaderLogin, onAdminClick }) => {
         />
       )}
 
-      {/* Admin PIN modal */}
+      {/* Admin password modal (keyboard) */}
       {adminPin && (
-        <PinModal
+        <TextPinModal
           title="Admin Access"
-          subtitle="Enter admin PIN to continue"
+          subtitle="Enter your admin password to continue"
           correctPin={ADMIN_PIN}
           dark={dark}
           onSuccess={() => { onAdminClick(); setAdminPin(false); }}
@@ -481,7 +634,7 @@ const hexToRgb = hex => {
 };
 
 // ─── LEADER PORTAL ────────────────────────────────────────────────────────────
-const LeaderPortal = ({ group, dark, onBack }) => {
+const LeaderPortal = ({ group, dark, setDark, onBack }) => {
   const { programs, students, setStudents, registrations, setRegistrations } = useApp();
   const [view, setView] = useState("home"); // home | addStudent | addReg | editReg
   const [editTarget, setEditTarget] = useState(null);
@@ -534,21 +687,21 @@ const LeaderPortal = ({ group, dark, onBack }) => {
 
   return (
     <div style={{ minHeight: "100vh", background: dark ? "#080917" : "#f0f0fa" }}>
-      <div className="topbar">
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <Topbar dark={dark} setDark={setDark} context={`${group.name} · Leader Portal`}
+        left={<>
           <button className="btn btn-ghost btn-icon btn-sm" onClick={view === "home" ? onBack : () => setView("home")}><Ic name="back" size={16} /></button>
           <div>
             <div className="ff-display fw-800" style={{ fontSize: 15, lineHeight: 1 }}>{group.name}</div>
             <div className="text-muted" style={{ fontSize: 11 }}>Leader Portal</div>
           </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        </>}
+        right={<>
           <div className="live"><div className="live-dot" /><span className="text-muted" style={{ fontSize: 12 }}>Live</span></div>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: `${group.color}22`, border: `1.5px solid ${group.color}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: group.color }}>{group.name[6]}</span>
           </div>
-        </div>
-      </div>
+        </>}
+      />
 
       <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
         {view === "home" && (
@@ -713,19 +866,19 @@ const AdminPortal = ({ dark, onBack }) => {
 
   return (
     <div style={{ minHeight: "100vh", background: dark ? "#080917" : "#f0f0fa" }}>
-      <div className="topbar">
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <Topbar dark={dark} setDark={setDark} context="Admin Panel"
+        left={<>
           <button className="btn btn-ghost btn-icon btn-sm" onClick={onBack}><Ic name="back" size={16} /></button>
           <div>
             <div className="ff-display fw-800" style={{ fontSize: 15, lineHeight: 1 }}>Admin Panel</div>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div className="live-dot" /><span className="text-muted" style={{ fontSize: 11 }}>Live updates</span></div>
           </div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        </>}
+        right={<div style={{ display: "flex", gap: 8 }}>
           <button className="btn btn-sm" style={{ background: view === "students" ? "linear-gradient(135deg,#6c63ff,#8b5cf6)" : (dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"), color: view === "students" ? "white" : (dark ? "#9ca3af" : "#6b7280") }} onClick={() => setView("students")}><Ic name="users" size={13} />Students</button>
           <button className="btn btn-sm" style={{ background: view === "programs" ? "linear-gradient(135deg,#6c63ff,#8b5cf6)" : (dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"), color: view === "programs" ? "white" : (dark ? "#9ca3af" : "#6b7280") }} onClick={() => setView("programs")}><Ic name="book" size={13} />Programs</button>
-        </div>
-      </div>
+        </div>}
+      />
 
       <div style={{ padding: 24, maxWidth: 860, margin: "0 auto" }}>
         {view === "students" && (
@@ -895,21 +1048,6 @@ const AdminPortal = ({ dark, onBack }) => {
   );
 };
 
-// ─── DARK MODE TOGGLE ─────────────────────────────────────────────────────────
-const DarkToggle = ({ dark, setDark }) => (
-  <button onClick={() => setDark(d => !d)} style={{
-    position: "fixed", bottom: 20, right: 20, zIndex: 500,
-    width: 44, height: 44, borderRadius: "50%",
-    background: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-    border: `1.5px solid ${dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"}`,
-    backdropFilter: "blur(12px)",
-    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 18, transition: "all 0.2s", boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-  }} title="Toggle theme">
-    {dark ? "☀️" : "🌙"}
-  </button>
-);
-
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [dark, setDark] = useState(true);
@@ -937,14 +1075,12 @@ export default function App() {
       )}
 
       {!splash && screen === "leader" && activeGroup && (
-        <LeaderPortal group={activeGroup} dark={dark} onBack={() => setScreen("landing")} />
+        <LeaderPortal group={activeGroup} dark={dark} setDark={setDark} onBack={() => setScreen("landing")} />
       )}
 
       {!splash && screen === "admin" && (
-        <AdminPortal dark={dark} onBack={() => setScreen("landing")} />
+        <AdminPortal dark={dark} setDark={setDark} onBack={() => setScreen("landing")} />
       )}
-
-      <DarkToggle dark={dark} setDark={setDark} />
     </AppContext.Provider>
   );
 }

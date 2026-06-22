@@ -541,26 +541,11 @@ const hexToRgb = hex => {
 // ─── LEADER PORTAL ────────────────────────────────────────────────────────────
 const LeaderPortal = ({ group, dark, setDark, onBack }) => {
   const { programs, students, setStudents, registrations, setRegistrations } = useApp();
-  const [view, setView] = useState("home"); // home | addStudent | addReg | editReg
+  const [view, setView] = useState("home"); // home | addReg | editReg
   const [editTarget, setEditTarget] = useState(null);
 
   const myStudents = students[group.id] || [];
   const myRegs = registrations.filter(r => r.groupId === group.id);
-
-  // ── Add student ──
-  const [stuForm, setStuForm] = useState({ name: "", category: "Senior" });
-  const catPrefix = { "Sub-Junior": "SJ", "Junior": "JR", "Senior": "SR" };
-  const groupIdx = { g1: 1, g2: 2, g3: 3 }[group.id] || 1;
-
-  const saveStudent = () => {
-    if (!stuForm.name.trim()) return;
-    const cnt = (students[group.id] || []).filter(s => s.category === stuForm.category).length + 1;
-    const chest = `${catPrefix[stuForm.category]}-${groupIdx * 100 + cnt}`;
-    const newS = { id: "s" + Date.now(), name: stuForm.name, category: stuForm.category, chestNo: chest };
-    setStudents(prev => ({ ...prev, [group.id]: [...(prev[group.id] || []), newS] }));
-    setStuForm({ name: "", category: "Senior" });
-    setView("home");
-  };
 
   // ── Registration ──
   const [regForm, setRegForm] = useState({ programId: "", participantIds: [] });
@@ -623,7 +608,7 @@ const LeaderPortal = ({ group, dark, setDark, onBack }) => {
             <div className="card anim-fadeUp stagger-2" style={{ padding: 20, marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div className="ff-display fw-800" style={{ fontSize: 15 }}>Students</div>
-                <button className="btn btn-primary btn-sm" onClick={() => setView("addStudent")}><Ic name="plus" size={13} />Add Student</button>
+
               </div>
               {myStudents.length === 0
                 ? <div className="text-muted" style={{ textAlign: "center", padding: "24px 0", fontSize: 13 }}>No students yet. Add your first one!</div>
@@ -682,21 +667,7 @@ const LeaderPortal = ({ group, dark, setDark, onBack }) => {
           </>
         )}
 
-        {view === "addStudent" && (
-          <div className="card anim-scaleIn" style={{ padding: 24 }}>
-            <div className="ff-display fw-800" style={{ fontSize: 17, marginBottom: 20 }}>Add Student</div>
-            <div style={{ marginBottom: 16 }}><label className="label">Full Name</label><input className="input" value={stuForm.name} onChange={e => setStuForm(f => ({ ...f, name: e.target.value }))} placeholder="Student's full name" /></div>
-            <div style={{ marginBottom: 24 }}><label className="label">Category</label>
-              <select className="input select" value={stuForm.category} onChange={e => setStuForm(f => ({ ...f, category: e.target.value }))}>
-                <option>Sub-Junior</option><option>Junior</option><option>Senior</option>
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button className="btn btn-ghost" onClick={() => setView("home")}>Cancel</button>
-              <button className="btn btn-primary" onClick={saveStudent}><Ic name="check" size={14} />Add Student</button>
-            </div>
-          </div>
-        )}
+
 
         {view === "reg" && (
           <div className="card anim-scaleIn" style={{ padding: 24 }}>
@@ -744,14 +715,29 @@ const LeaderPortal = ({ group, dark, setDark, onBack }) => {
 
 // ─── ADMIN PORTAL ─────────────────────────────────────────────────────────────
 const AdminPortal = ({ dark, setDark, onBack }) => {
-  const { groups, programs, setPrograms, students, registrations } = useApp();
+  const { groups, programs, setPrograms, students, setStudents, registrations } = useApp();
   const [view, setView] = useState("students"); // students | programs
   const [activeGroup, setActiveGroup] = useState(groups[0]?.id);
   const [progModal, setProgModal] = useState(false);
   const [editProg, setEditProg] = useState(null);
   const [progForm, setProgForm] = useState({ name: "", category: "Senior", type: "Single", maxParticipants: 1, criteria: ["", ""] });
 
-  const openAddProg = () => { setProgForm({ name: "", category: "Senior", type: "Single", maxParticipants: 1, criteria: ["", ""] }); setEditProg(null); setProgModal(true); };
+  const [stuModal, setStuModal] = useState(false);
+  const [stuForm, setStuForm] = useState({ name: "", category: "Senior" });
+  const catPrefix = { "Sub-Junior": "SJ", "Junior": "JR", "Senior": "SR" };
+  const groupIdx = (gid) => ({ g1: 1, g2: 2, g3: 3 }[gid] || 1);
+  const saveStudent = () => {
+    if (!stuForm.name.trim()) return;
+    const cnt = (students[activeGroup] || []).filter(s => s.category === stuForm.category).length + 1;
+    const chest = `${catPrefix[stuForm.category]}-${groupIdx(activeGroup) * 100 + cnt}`;
+    const newS = { id: "s" + Date.now(), name: stuForm.name, category: stuForm.category, chestNo: chest };
+    setStudents(prev => ({ ...prev, [activeGroup]: [...(prev[activeGroup] || []), newS] }));
+    setStuForm({ name: "", category: "Senior" });
+    setStuModal(false);
+  };
+  const deleteStudent = (gid, sid) => setStudents(prev => ({ ...prev, [gid]: (prev[gid] || []).filter(s => s.id !== sid) }));
+
+    const openAddProg = () => { setProgForm({ name: "", category: "Senior", type: "Single", maxParticipants: 1, criteria: ["", ""] }); setEditProg(null); setProgModal(true); };
   const openEditProg = (p) => { setProgForm({ ...p, criteria: [...(p.criteria || ["",""])] }); setEditProg(p); setProgModal(true); };
   const deleteProg = (id) => setPrograms(prev => prev.filter(p => p.id !== id));
   const saveProg = () => {
@@ -801,16 +787,17 @@ const AdminPortal = ({ dark, setDark, onBack }) => {
 
             {/* Students of selected group */}
             <div className="card anim-fadeUp" style={{ padding: 20, marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: curGroup?.color }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: curGroup?.color, flexShrink: 0 }} />
                 <div className="ff-display fw-800" style={{ fontSize: 16 }}>{curGroup?.name} — Students</div>
-                <span className="chip" style={{ background: `${curGroup?.color}18`, color: curGroup?.color, marginLeft: "auto" }}>{curStudents.length} total</span>
+                <span className="chip" style={{ background: `${curGroup?.color}18`, color: curGroup?.color }}>{curStudents.length} total</span>
+                <button className="btn btn-primary btn-sm" style={{ marginLeft: "auto" }} onClick={() => { setStuForm({ name: "", category: "Senior" }); setStuModal(true); }}><Ic name="plus" size={13} />Add Student</button>
               </div>
               {curStudents.length === 0
-                ? <div className="text-muted" style={{ textAlign: "center", padding: "28px 0", fontSize: 13 }}>No students added by {curGroup?.name} leader yet.</div>
+                ? <div className="text-muted" style={{ textAlign: "center", padding: "28px 0", fontSize: 13 }}>No students in {curGroup?.name} yet. Click "Add Student" to add one.</div>
                 : <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}` }}>
                     <table className="tbl">
-                      <thead><tr><th>Chest #</th><th>Name</th><th>Category</th><th>Registered Events</th></tr></thead>
+                      <thead><tr><th>Chest #</th><th>Name</th><th>Category</th><th>Events</th><th></th></tr></thead>
                       <tbody>
                         {curStudents.map(s => {
                           const evts = registrations.filter(r => r.groupId === activeGroup && r.participantIds.includes(s.id));
@@ -820,6 +807,7 @@ const AdminPortal = ({ dark, setDark, onBack }) => {
                               <td style={{ fontWeight: 500 }}>{s.name}</td>
                               <td><span className={`badge badge-${s.category === "Sub-Junior" ? "sj" : s.category.toLowerCase()}`}>{s.category}</span></td>
                               <td><span className="text-muted" style={{ fontSize: 12 }}>{evts.length} event{evts.length !== 1 ? "s" : ""}</span></td>
+                              <td><button className="btn btn-danger btn-icon btn-sm" onClick={() => deleteStudent(activeGroup, s.id)}><Ic name="trash" size={12} /></button></td>
                             </tr>
                           );
                         })}
@@ -915,6 +903,26 @@ const AdminPortal = ({ dark, setDark, onBack }) => {
           </>
         )}
       </div>
+
+      {stuModal && (
+        <Modal title="Add Student" onClose={() => setStuModal(false)}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div><label className="label">Full Name</label><input className="input" value={stuForm.name} onChange={e => setStuForm(f => ({ ...f, name: e.target.value }))} onKeyDown={e => e.key === "Enter" && saveStudent()} placeholder="Student's full name" autoFocus /></div>
+            <div><label className="label">Category</label>
+              <select className="input select" value={stuForm.category} onChange={e => setStuForm(f => ({ ...f, category: e.target.value }))}>
+                <option>Sub-Junior</option><option>Junior</option><option>Senior</option>
+              </select>
+            </div>
+            <div style={{ background: "rgba(108,99,255,0.07)", border: "1px solid rgba(108,99,255,0.15)", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#6c63ff" }}>
+              Adding to <strong>{curGroup?.name}</strong> · Chest no. auto-assigned
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button className="btn btn-ghost" onClick={() => setStuModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={saveStudent}><Ic name="check" size={14} />Add Student</button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {progModal && (
         <Modal title={editProg ? "Edit Program" : "Add Program"} onClose={() => setProgModal(false)} wide>

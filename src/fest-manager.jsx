@@ -717,6 +717,19 @@ const LeaderPortal = ({ group, dark, setDark, onBack }) => {
 
 // ─── ADMIN PORTAL ─────────────────────────────────────────────────────────────
 
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+const Modal = ({ title, onClose, children, wide }) => (
+  <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className={`modal${wide ? " modal-lg" : ""}`}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+        <div className="ff-display fw-800" style={{ fontSize:17 }}>{title}</div>
+        <button className="btn btn-ghost btn-icon" onClick={onClose}><Ic name="x" size={15}/></button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
 // ─── PRINT SECTION ────────────────────────────────────────────────────────────
 const PrintSection = ({ dark }) => {
   const { programs, students, registrations, groups } = useApp();
@@ -1152,10 +1165,9 @@ const AdminPortal = ({ dark, setDark, onBack }) => {
             )}
           </>
         )}
-      </div>
-
 
         {view === "print" && <PrintSection dark={dark} />}
+      </div>
 
       {stuModal && (
         <Modal title="Add Student" onClose={() => setStuModal(false)}>

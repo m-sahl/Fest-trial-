@@ -733,6 +733,373 @@ const Modal = ({ title, onClose, children, wide }) => (
 // ─── PRINT SECTION ────────────────────────────────────────────────────────────
 const PrintSection = ({ dark }) => {
   const { programs, students, registrations, groups } = useApp();
+  const [selProg, setSelProg] = useState(programs[0]?.id || "");
+  const [selectedPages, setSelectedPages] = useState({ chest: true, name: true, code: true });
+  const [previewPage, setPreviewPage] = useState("chest");
+
+  const prog = programs.find(p => p.id === selProg);
+
+  const getParticipants = () => {
+    const regs = registrations.filter(r => r.programId === selProg);
+    return regs.flatMap(r => {
+      const grp = groups.find(g => g.id === r.groupId);
+      const grpStudents = students[r.groupId] || [];
+      return r.participantIds.map(id => {
+        const s = grpStudents.find(st => st.id === id);
+        return s ? { ...s, groupName: grp?.name, groupColor: grp?.color } : null;
+      }).filter(Boolean);
+    });
+  };
+
+  const participants = getParticipants();
+  const byChest = [...participants].sort((a, b) => parseInt(a.chestNo) - parseInt(b.chestNo));
+  const byName  = [...participants].sort((a, b) => a.name.localeCompare(b.name));
+  const criteria = prog?.criteria?.filter(Boolean) || ["Criteria 1", "Criteria 2"];
+
+  const pages = [
+    { id: "chest", label: "Call List — By Chest No.", icon: "🔢", desc: "Sorted by chest number · Attendance column" },
+    { id: "name",  label: "Call List — By Name",     icon: "🔤", desc: "Sorted alphabetically · Attendance column" },
+    { id: "code",  label: "Judges' Code Sheet",       icon: "🎭", desc: "Anonymous · Blank score columns" },
+  ];
+
+  const togglePage = (id) => setSelectedPages(p => ({ ...p, [id]: !p[id] }));
+
+  const handlePrint = () => {
+    const selected = pages.filter(p => selectedPages[p.id]);
+    if (selected.length === 0) return;
+
+    const printWin = window.open("", "_blank", "width=900,height=700");
+    const sheetsHtml = selected.map(p => renderSheetHtml(p.id)).join('<div style="page-break-after:always"></div>');
+    printWin.document.write(`
+      <html><head><title>FF Fest — ${prog?.name || "Print"}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; }
+        .sheet { padding: 32px; max-width: 800px; margin: 0 auto; }
+        h2 { font-size: 20px; font-weight: bold; margin-bottom: 4px; }
+        .sub { font-size: 12px; color: #666; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th { background: #f0f0f8; padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; border: 1px solid #ccc; color: #555; }
+        td { padding: 9px 12px; border: 1px solid #ddd; font-size: 13px; }
+        tr:nth-child(even) { background: #fafafa; }
+        .chest-no { font-weight: 800; font-size: 15px; color: #6c63ff; }
+        .code-cell { text-align: center; font-size: 22px; font-weight: 900; color: #6c63ff; }
+        .blank { background: #f9f9f9; }
+        .footer { font-size: 10px; color: #aaa; text-align: right; margin-top: 16px; border-top: 1px solid #eee; padding-top: 8px; }
+        .warn { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #92400e; margin-bottom: 14px; }
+        .checkbox { width: 18px; height: 18px; border: 1.5px solid #999; border-radius: 3px; display: inline-block; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style></head><body>
+      ${sheetsHtml}
+      </body></html>
+    `);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => printWin.print(), 400);
+  };
+
+  const renderSheetHtml = (sheetId) => {
+    const name = prog?.name || "Program";
+    const cat = prog?.category || "";
+    const type = prog?.type || "";
+    if (sheetId === "chest") {
+      const rows = byChest.map((p, i) => `
+        <tr>
+          <td class="chest-no">${p.chestNo}</td>
+          <td>${p.name}</td>
+          <td>${p.groupName}</td>
+          <td>${p.category}</td>
+          <td style="text-align:center"><span class="checkbox"></span></td>
+        </tr>`).join("");
+      return `<div class="sheet">
+        <h2>${name} — Call List (By Chest No.)</h2>
+        <div class="sub">${cat} · ${type} · Sorted by Chest Number</div>
+        <table><thead><tr><th>Chest No.</th><th>Name</th><th>Group</th><th>Category</th><th style="text-align:center">Attendance ✓</th></tr></thead>
+        <tbody>${rows || "<tr><td colspan='5' style='text-align:center;color:#999;padding:20px'>No participants registered</td></tr>"}</tbody></table>
+        <div class="footer">Total: ${byChest.length} · FF Fest Management</div></div>`;
+    }
+    if (sheetId === "name") {
+      const rows = byName.map((p, i) => `
+        <tr>
+          <td style="color:#999">${i + 1}</td>
+          <td style="font-weight:700">${p.name}</td>
+          <td class="chest-no">${p.chestNo}</td>
+          <td>${p.groupName}</td>
+          <td>${p.category}</td>
+          <td style="text-align:center"><span class="checkbox"></span></td>
+        </tr>`).join("");
+      return `<div class="sheet">
+        <h2>${name} — Call List (By Name)</h2>
+        <div class="sub">${cat} · ${type} · Sorted Alphabetically</div>
+        <table><thead><tr><th>Sl.</th><th>Name</th><th>Chest No.</th><th>Group</th><th>Category</th><th style="text-align:center">Attendance ✓</th></tr></thead>
+        <tbody>${rows || "<tr><td colspan='6' style='text-align:center;color:#999;padding:20px'>No participants registered</td></tr>"}</tbody></table>
+        <div class="footer">Total: ${byName.length} · FF Fest Management</div></div>`;
+    }
+    if (sheetId === "code") {
+      const crits = criteria.map(c => `<th style="text-align:center">${c} (/10)</th>`).join("");
+      const rows = byChest.map((_, i) => `
+        <tr>
+          <td class="code-cell">${String.fromCharCode(65 + i)}</td>
+          ${criteria.map(() => '<td class="blank"></td>').join("")}
+          <td class="blank"></td>
+          <td class="blank" style="min-width:120px"></td>
+        </tr>`).join("");
+      return `<div class="sheet">
+        <h2>${name} — Judges' Evaluation Sheet</h2>
+        <div class="sub">${cat} · ${type} · Confidential · For Judge Use Only</div>
+        <div class="warn">⚠️ This sheet is anonymized. Do not reveal participant identities to judges.</div>
+        <table><thead><tr><th style="text-align:center;width:60px">Code</th>${crits}<th style="text-align:center">Total (/${criteria.length * 10})</th><th>Remarks</th></tr></thead>
+        <tbody>${rows || "<tr><td colspan='4' style='text-align:center;color:#999;padding:20px'>No participants registered</td></tr>"}</tbody></table>
+        <div class="footer">${byChest.length} entries · FF Fest Management · Confidential</div></div>`;
+    }
+    return "";
+  };
+
+  // ── Preview renderer (in-app) ──────────────────────────────────────────────
+  const cell  = { border: `1.5px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, padding: "9px 12px", fontSize: 12.5 };
+  const hCell = { ...cell, background: dark ? "rgba(108,99,255,0.12)" : "rgba(108,99,255,0.07)", fontWeight: 700, fontSize: 10.5, letterSpacing: 0.7, textTransform: "uppercase", color: dark ? "#a78bfa" : "#6c63ff" };
+  const bCell = { ...cell, background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)", minWidth: 70 };
+
+  const PreviewSheet = ({ id }) => {
+    const rowBg = (i) => i % 2 === 0 ? (dark ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.01)") : "transparent";
+    if (id === "chest") return (
+      <div>
+        <div className="ff-display fw-800" style={{ fontSize: 17, marginBottom: 3 }}>{prog?.name} — Call List</div>
+        <div className="text-muted" style={{ fontSize: 12, marginBottom: 16 }}>{prog?.category} · {prog?.type} · Sorted by Chest Number</div>
+        {participants.length === 0
+          ? <div className="text-muted" style={{ textAlign: "center", padding: "32px 0", fontSize: 13 }}>No participants registered yet.</div>
+          : <div className="tbl-wrap"><table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr>
+                <th style={hCell}>Chest No.</th><th style={hCell}>Name</th>
+                <th style={hCell}>Group</th><th style={hCell}>Category</th>
+                <th style={{ ...hCell, textAlign: "center" }}>Attendance ✓</th>
+              </tr></thead>
+              <tbody>{byChest.map((p, i) => (
+                <tr key={i} style={{ background: rowBg(i) }}>
+                  <td style={{ ...cell, fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 15, color: ACCENT }}>{p.chestNo}</td>
+                  <td style={{ ...cell, fontWeight: 600 }}>{p.name}</td>
+                  <td style={cell}><span className="chip" style={{ background: `${p.groupColor}22`, color: p.groupColor }}>{p.groupName}</span></td>
+                  <td style={cell}><span className={`badge badge-${p.category === "Sub-Junior" ? "sj" : p.category.toLowerCase()}`}>{p.category}</span></td>
+                  <td style={{ ...cell, textAlign: "center" }}><div style={{ width: 18, height: 18, border: `1.5px solid ${dark ? "rgba(108,99,255,0.4)" : "rgba(108,99,255,0.5)"}`, borderRadius: 4, margin: "0 auto" }} /></td>
+                </tr>
+              ))}</tbody>
+            </table></div>}
+        <div className="text-muted" style={{ fontSize: 11, marginTop: 12, textAlign: "right" }}>Total: {participants.length} · FF Fest Management</div>
+      </div>
+    );
+    if (id === "name") return (
+      <div>
+        <div className="ff-display fw-800" style={{ fontSize: 17, marginBottom: 3 }}>{prog?.name} — Call List</div>
+        <div className="text-muted" style={{ fontSize: 12, marginBottom: 16 }}>{prog?.category} · {prog?.type} · Sorted by Name</div>
+        {participants.length === 0
+          ? <div className="text-muted" style={{ textAlign: "center", padding: "32px 0", fontSize: 13 }}>No participants registered yet.</div>
+          : <div className="tbl-wrap"><table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr>
+                <th style={hCell}>Sl.</th><th style={hCell}>Name</th><th style={hCell}>Chest No.</th>
+                <th style={hCell}>Group</th><th style={hCell}>Category</th>
+                <th style={{ ...hCell, textAlign: "center" }}>Attendance ✓</th>
+              </tr></thead>
+              <tbody>{byName.map((p, i) => (
+                <tr key={i} style={{ background: rowBg(i) }}>
+                  <td style={{ ...cell, color: dark ? "#6b7280" : "#9ca3af" }}>{i + 1}</td>
+                  <td style={{ ...cell, fontWeight: 700 }}>{p.name}</td>
+                  <td style={{ ...cell, fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 14, color: ACCENT }}>{p.chestNo}</td>
+                  <td style={cell}><span className="chip" style={{ background: `${p.groupColor}22`, color: p.groupColor }}>{p.groupName}</span></td>
+                  <td style={cell}><span className={`badge badge-${p.category === "Sub-Junior" ? "sj" : p.category.toLowerCase()}`}>{p.category}</span></td>
+                  <td style={{ ...cell, textAlign: "center" }}><div style={{ width: 18, height: 18, border: `1.5px solid ${dark ? "rgba(108,99,255,0.4)" : "rgba(108,99,255,0.5)"}`, borderRadius: 4, margin: "0 auto" }} /></td>
+                </tr>
+              ))}</tbody>
+            </table></div>}
+        <div className="text-muted" style={{ fontSize: 11, marginTop: 12, textAlign: "right" }}>Total: {participants.length} · FF Fest Management</div>
+      </div>
+    );
+    if (id === "code") return (
+      <div>
+        <div className="ff-display fw-800" style={{ fontSize: 17, marginBottom: 3 }}>{prog?.name} — Judges' Sheet</div>
+        <div className="text-muted" style={{ fontSize: 12, marginBottom: 12 }}>{prog?.category} · {prog?.type} · Anonymized · Confidential</div>
+        <div style={{ background: dark ? "rgba(251,191,36,0.08)" : "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 10, padding: "9px 13px", fontSize: 12, color: "#d97706", marginBottom: 14 }}>
+          ⚠️ Anonymized sheet — no participant identities visible to judges.
+        </div>
+        {participants.length === 0
+          ? <div className="text-muted" style={{ textAlign: "center", padding: "32px 0", fontSize: 13 }}>No participants registered yet.</div>
+          : <div className="tbl-wrap"><table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr>
+                <th style={{ ...hCell, textAlign: "center", width: 56 }}>Code</th>
+                {criteria.map((c, i) => <th key={i} style={{ ...hCell, textAlign: "center" }}>{c} <span style={{ opacity: 0.5 }}>(/10)</span></th>)}
+                <th style={{ ...hCell, textAlign: "center" }}>Total <span style={{ opacity: 0.5 }}>({criteria.length * 10})</span></th>
+                <th style={hCell}>Remarks</th>
+              </tr></thead>
+              <tbody>{byChest.map((_, i) => (
+                <tr key={i} style={{ background: rowBg(i) }}>
+                  <td style={{ ...cell, textAlign: "center" }}>
+                    <span style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 900, fontSize: 18, background: "linear-gradient(135deg,#6c63ff,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{String.fromCharCode(65 + i)}</span>
+                  </td>
+                  {criteria.map((_, ci) => <td key={ci} style={bCell} />)}
+                  <td style={bCell} /><td style={{ ...bCell, minWidth: 120 }} />
+                </tr>
+              ))}</tbody>
+            </table></div>}
+        <div className="text-muted" style={{ fontSize: 11, marginTop: 12, textAlign: "right" }}>{participants.length} entries · FF Fest Management · Confidential</div>
+      </div>
+    );
+    return null;
+  };
+
+  const anySelected = Object.values(selectedPages).some(Boolean);
+
+  return (
+    <div className="anim-fadeUp">
+      {/* Top controls bar */}
+      <div className="card" style={{ padding: "14px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div className="ff-display fw-800" style={{ fontSize: 15, flexShrink: 0 }}>Print Sheets</div>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <select className="input select" style={{ padding: "7px 32px 7px 12px", fontSize: 13 }} value={selProg} onChange={e => setSelProg(e.target.value)}>
+            <option value="">— Select a program —</option>
+            {programs.map(p => <option key={p.id} value={p.id}>{p.name} ({p.category})</option>)}
+          </select>
+        </div>
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={handlePrint}
+          disabled={!selProg || !anySelected}
+          style={{ opacity: (!selProg || !anySelected) ? 0.5 : 1, cursor: (!selProg || !anySelected) ? "not-allowed" : "pointer" }}>
+          <Ic name="printer" size={13} />Print Selected ({Object.values(selectedPages).filter(Boolean).length})
+        </button>
+      </div>
+
+      {!selProg
+        ? <div className="card" style={{ padding: 48, textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🖨️</div>
+            <div className="ff-display fw-800" style={{ marginBottom: 6 }}>Select a Program</div>
+            <div className="text-muted" style={{ fontSize: 13 }}>Choose a program above to preview and print sheets.</div>
+          </div>
+        : <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+
+            {/* ── LEFT PANEL: page thumbnails ── */}
+            <div style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="text-muted" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>Pages</div>
+              {pages.map(p => {
+                const isActive = previewPage === p.id;
+                const isSelected = selectedPages[p.id];
+                return (
+                  <div key={p.id}
+                    onClick={() => setPreviewPage(p.id)}
+                    style={{
+                      borderRadius: 14, cursor: "pointer", overflow: "hidden",
+                      border: `2px solid ${isActive ? ACCENT : (dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)")}`,
+                      background: isActive ? "rgba(108,99,255,0.07)" : (dark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.8)"),
+                      transition: "all 0.2s cubic-bezier(0.22,1,0.36,1)",
+                      boxShadow: isActive ? "0 0 0 3px rgba(108,99,255,0.15)" : "none",
+                      opacity: isSelected ? 1 : 0.45,
+                    }}>
+                    {/* Mini page thumbnail */}
+                    <div style={{
+                      height: 110, background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                      borderBottom: `1px solid ${dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                      position: "relative", gap: 6,
+                    }}>
+                      <div style={{ fontSize: 28 }}>{p.icon}</div>
+                      {/* Mini table lines */}
+                      <div style={{ width: "70%", display: "flex", flexDirection: "column", gap: 3 }}>
+                        {[1,2,3,4].map(r => (
+                          <div key={r} style={{ height: 4, borderRadius: 2, background: r === 1 ? (dark ? "rgba(108,99,255,0.4)" : "rgba(108,99,255,0.3)") : (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)") }} />
+                        ))}
+                      </div>
+                      {isActive && <div style={{ position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: "50%", background: ACCENT, boxShadow: `0 0 6px ${ACCENT}` }} />}
+                    </div>
+                    {/* Page info + checkbox */}
+                    <div style={{ padding: "10px 12px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.3, marginBottom: 3 }}>{p.label}</div>
+                        <div className="text-muted" style={{ fontSize: 10.5, lineHeight: 1.4 }}>{p.desc}</div>
+                      </div>
+                      <div
+                        onClick={e => { e.stopPropagation(); togglePage(p.id); }}
+                        style={{
+                          width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
+                          border: `2px solid ${isSelected ? ACCENT : (dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)")}`,
+                          background: isSelected ? ACCENT : "transparent",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          cursor: "pointer", transition: "all 0.18s cubic-bezier(0.34,1.56,0.64,1)",
+                        }}>
+                        {isSelected && <Ic name="check" size={11} />}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="text-muted" style={{ fontSize: 10.5, textAlign: "center", marginTop: 4 }}>
+                Click to preview · Check to select for print
+              </div>
+            </div>
+
+            {/* ── RIGHT PANEL: preview ── */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                background: dark ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.95)",
+                border: `1px solid ${dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)"}`,
+                borderRadius: 18, overflow: "hidden",
+              }}>
+                {/* Preview topbar */}
+                <div style={{
+                  padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                  borderBottom: `1px solid ${dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
+                  background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      {["#ef4444","#f59e0b","#22c55e"].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}
+                    </div>
+                    <span className="text-muted" style={{ fontSize: 11.5, marginLeft: 4 }}>
+                      {pages.find(p => p.id === previewPage)?.label} · Preview
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {pages.map(p => (
+                      <button key={p.id} onClick={() => setPreviewPage(p.id)}
+                        className="btn btn-sm"
+                        style={{ padding: "4px 10px", fontSize: 11, background: previewPage === p.id ? "linear-gradient(135deg,#6c63ff,#8b5cf6)" : (dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"), color: previewPage === p.id ? "white" : (dark ? "#9ca3af" : "#6b7280") }}>
+                        {p.icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* A4-like preview area */}
+                <div style={{ padding: "20px", background: dark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.04)", minHeight: 400 }}>
+                  <div style={{
+                    background: dark ? "#111226" : "#ffffff",
+                    borderRadius: 10, padding: "24px 22px",
+                    boxShadow: dark ? "0 4px 32px rgba(0,0,0,0.4)" : "0 4px 24px rgba(0,0,0,0.1)",
+                    animation: "scaleIn 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+                  }}>
+                    <PreviewSheet key={previewPage} id={previewPage} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+      }
+    </div>
+  );
+};
+
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+const Modal = ({ title, onClose, children, wide }) => (
+  <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className={`modal${wide ? " modal-lg" : ""}`}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+        <div className="ff-display fw-800" style={{ fontSize:17 }}>{title}</div>
+        <button className="btn btn-ghost btn-icon" onClick={onClose}><Ic name="x" size={15}/></button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
+// ─── PRINT SECTION ────────────────────────────────────────────────────────────
+const PrintSection = ({ dark }) => {
+  const { programs, students, registrations, groups } = useApp();
   const [sheet, setSheet] = useState("chest");   // chest | name | code
   const [selProg, setSelProg] = useState(programs[0]?.id || "");
   const printRef = useRef(null);

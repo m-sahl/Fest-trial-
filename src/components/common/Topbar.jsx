@@ -3,7 +3,7 @@ import Ic from "./Ic";
 import { ACCENT } from "../../styles/DesignTokens";
 import { NumPinModal, TextPinModal } from "./AuthModals"; // We will create this next
 
-const SettingsPanel = ({ dark, setDark, onClose, context, onLogout, isAdmin, verify }) => {
+const SettingsPanel = ({ dark, setDark, onClose, context, onLogout, isAdmin, verify, pinLength }) => {
   const [confirming, setConfirming] = useState(false);
   const sections = [
     {
@@ -100,6 +100,7 @@ const SettingsPanel = ({ dark, setDark, onClose, context, onLogout, isAdmin, ver
               subtitle="Enter your group PIN to log out"
               verify={verify || (() => true)}
               dark={dark}
+              pinLength={pinLength}
               onSuccess={() => { onLogout(); onClose(); }}
               onClose={() => setConfirming(false)}
             />
@@ -110,7 +111,7 @@ const SettingsPanel = ({ dark, setDark, onClose, context, onLogout, isAdmin, ver
   );
 };
 
-export const Topbar = ({ left, right, dark, setDark, context, onLogout, isAdmin, verify }) => {
+export const Topbar = ({ left, right, dark, setDark, context, onLogout, isAdmin, verify, pinLength }) => {
   const [settings, setSettings] = useState(false);
   return (
     <>
@@ -132,6 +133,7 @@ export const Topbar = ({ left, right, dark, setDark, context, onLogout, isAdmin,
           onLogout={onLogout}
           isAdmin={isAdmin}
           verify={verify}
+          pinLength={pinLength}
         />
       )}
     </>

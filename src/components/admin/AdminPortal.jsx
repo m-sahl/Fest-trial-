@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
 import Ic from "../common/Ic";
 import { Topbar } from "../common/Topbar";
@@ -19,7 +19,17 @@ const AdminPortal = ({ user, dark, setDark, onBack }) => {
   const [stuForm, setStuForm] = useState({ name: "", category: "Senior" });
   
   const [userModal, setUserModal] = useState(false);
-  const [userForm, setUserForm] = useState({ name: "", role: "leader", pin: "", groupId: groups[0]?.id });
+  const [userForm, setUserForm] = useState({ name: "", pin: "" });
+
+  const [editUserModal, setEditUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserForm, setEditUserForm] = useState({ name: "", pin: "" });
+
+  useEffect(() => {
+    if (groups.length > 0 && !groups.some(g => g.id === activeGroup)) {
+      setActiveGroup(groups[0].id);
+    }
+  }, [groups, activeGroup]);
 
   const catBase = { "Sub-Junior": 100, "Junior": 200, "Senior": 300 };
 
@@ -48,6 +58,30 @@ const AdminPortal = ({ user, dark, setDark, onBack }) => {
       const grp = groups.find(g => g.id === gId);
       logActivity(user.name, "Deleted student", `${s.name} (${s.chestNo}) from ${grp?.name}`);
     }
+  };
+
+  const updateStudentRole = (gId, sId, role) => {
+    setStudents(prev => {
+      const groupStudents = prev[gId] || [];
+      const updated = groupStudents.map(s => {
+        if (s.id === sId) {
+          return { ...s, groupRole: role };
+        }
+        // Mutual exclusion: if selecting Leader/Asst. Leader, clear from other students in the group
+        if (role === "Leader" && s.groupRole === "Leader") {
+          return { ...s, groupRole: "Member" };
+        }
+        if (role === "Asst. Leader" && s.groupRole === "Asst. Leader") {
+          return { ...s, groupRole: "Member" };
+        }
+        return s;
+      });
+      return { ...prev, [gId]: updated };
+    });
+
+    const s = (students[gId] || []).find(x => x.id === sId);
+    const grp = groups.find(g => g.id === gId);
+    logActivity(user.name, "Updated student designation", `${s?.name} is now ${role} in ${grp?.name}`);
   };
 
   const openAddProg = () => { setEditProg(null); setProgForm({ name: "", category: "Senior", type: "Single", maxParticipants: 1, criteria: ["", ""] }); setProgModal(true); };
@@ -80,10 +114,24 @@ const AdminPortal = ({ user, dark, setDark, onBack }) => {
 
   const saveUser = () => {
     if (!userForm.name.trim() || !userForm.pin.trim()) return;
-    const newU = { id: "u-" + Math.random().toString(36).substr(2, 5), ...userForm };
+    const id = "u-" + Math.random().toString(36).substr(2, 5);
+    const newU = { id, name: userForm.name.trim(), pin: userForm.pin.trim(), role: "group", groupId: id };
     setUsers(prev => [...prev, newU]);
-    logActivity(user.name, "Created user", `${newU.name} (${newU.role})`);
-    setUserModal(false); setUserForm({ name: "", role: "leader", pin: "", groupId: groups[0]?.id });
+    logActivity(user.name, "Added group", newU.name);
+    setUserModal(false); setUserForm({ name: "", pin: "" });
+  };
+
+  const openEditUser = (u) => {
+    setEditingUser(u);
+    setEditUserForm({ name: u.name, pin: u.pin });
+    setEditUserModal(true);
+  };
+
+  const saveEditUser = () => {
+    if (!editUserForm.name.trim() || !editUserForm.pin.trim()) return;
+    setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, name: editUserForm.name.trim(), pin: editUserForm.pin.trim() } : u));
+    logActivity(user.name, "Edited group", editUserForm.name);
+    setEditUserModal(false); setEditingUser(null);
   };
 
   const deleteUser = (id) => {
@@ -114,7 +162,7 @@ const AdminPortal = ({ user, dark, setDark, onBack }) => {
           <div className="admin-nav" style={{ overflowX: "auto", maxWidth: "45vw", scrollbarWidth: "none" }}>
             <button className={`btn btn-sm ${view === "students" ? "btn-primary" : "btn-ghost"}`} onClick={() => setView("students")}>Students</button>
             <button className={`btn btn-sm ${view === "programs" ? "btn-primary" : "btn-ghost"}`} onClick={() => setView("programs")}>Programs</button>
-            <button className={`btn btn-sm ${view === "users" ? "btn-primary" : "btn-ghost"}`} onClick={() => setView("users")}>Users</button>
+            <button className={`btn btn-sm ${view === "users" ? "btn-primary" : "btn-ghost"}`} onClick={() => setView("users")}>Groups</button>
             <button className={`btn btn-sm ${view === "logs" ? "btn-primary" : "btn-ghost"}`} onClick={() => setView("logs")}>Logs</button>
             <button className={`btn btn-sm ${view === "print" ? "btn-primary" : "btn-ghost"}`} onClick={() => setView("print")}>Print</button>
           </div>
@@ -147,18 +195,50 @@ const AdminPortal = ({ user, dark, setDark, onBack }) => {
 
             <div className="tbl-wrap anim-fadeUp stagger-2">
               <table className="tbl">
-                <thead><tr><th>Chest</th><th>Name</th><th>Category</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
+                <thead><tr><th>Chest</th><th>Name</th><th>Category</th><th>Designation</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
                 <tbody>
-                  {(students[activeGroup] || []).map((s, i) => (
-                    <tr key={s.id}>
-                      <td style={{ fontWeight: 800, color: ACCENT }}>{s.chestNo}</td>
-                      <td style={{ fontWeight: 600 }}>{s.name}</td>
-                      <td><span className={`badge badge-${s.category === "Sub-Junior" ? "sj" : s.category.toLowerCase()}`}>{s.category}</span></td>
-                      <td style={{ textAlign: "right" }}>
-                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteStudent(activeGroup, s.id)}><Ic name="trash" size={13} /></button>
-                      </td>
-                    </tr>
-                  ))}
+                  {[...(students[activeGroup] || [])]
+                    .sort((a, b) => {
+                      const roleA = a.groupRole || "Member";
+                      const roleB = b.groupRole || "Member";
+                      if (roleA === "Leader" && roleB !== "Leader") return -1;
+                      if (roleB === "Leader" && roleA !== "Leader") return 1;
+                      if (roleA === "Asst. Leader" && roleB !== "Leader" && roleB !== "Asst. Leader") return -1;
+                      if (roleB === "Asst. Leader" && roleA !== "Leader" && roleA !== "Asst. Leader") return 1;
+                      return 0;
+                    })
+                    .map((s, i) => (
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 800, color: ACCENT }}>{s.chestNo}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span>{s.name}</span>
+                            {s.groupRole === "Leader" && (
+                              <span className="badge" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)", fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>★ Leader</span>
+                            )}
+                            {s.groupRole === "Asst. Leader" && (
+                              <span className="badge" style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)", fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>☆ Asst.</span>
+                            )}
+                          </div>
+                        </td>
+                        <td><span className={`badge badge-${s.category === "Sub-Junior" ? "sj" : s.category.toLowerCase()}`}>{s.category}</span></td>
+                        <td>
+                          <select 
+                            className="input select" 
+                            style={{ width: 140, height: 32, fontSize: 12, padding: "2px 8px", borderRadius: 8 }}
+                            value={s.groupRole || "Member"}
+                            onChange={(e) => updateStudentRole(activeGroup, s.id, e.target.value)}
+                          >
+                            <option value="Member">Member</option>
+                            <option value="Leader">Leader</option>
+                            <option value="Asst. Leader">Asst. Leader</option>
+                          </select>
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteStudent(activeGroup, s.id)}><Ic name="trash" size={13} /></button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -242,25 +322,32 @@ const AdminPortal = ({ user, dark, setDark, onBack }) => {
         {view === "users" && (
           <div className="anim-fadeUp">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <div className="ff-display fw-800" style={{ fontSize: 18 }}>System Accounts</div>
-              <button className="btn btn-primary btn-sm" onClick={() => setUserModal(true)}><Ic name="plus" size={13} />Add User</button>
+              <div>
+                <div className="ff-display fw-800" style={{ fontSize: 18 }}>Group Control</div>
+                <div style={{ fontSize: 12, color: dark ? "#6b7280" : "#9ca3af", marginTop: 2, fontWeight: 500 }}>Each entry is a group that appears on the login page · Admin is a protected account</div>
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => setUserModal(true)}><Ic name="plus" size={13} />Add Group</button>
             </div>
             <div className="tbl-wrap">
               <table className="tbl">
-                <thead><tr><th>Name</th><th>Role</th><th>Group / Scope</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
+                <thead><tr><th>#</th><th>Group Name</th><th>PIN</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
                 <tbody>
-                  {users.map(u => (
+                  {users.filter(u => u.role !== "admin").map((u, idx) => (
                     <tr key={u.id}>
+                      <td style={{ fontWeight: 800, color: ACCENT, width: 36 }}>{idx + 1}</td>
                       <td style={{ fontWeight: 700 }}>{u.name}</td>
-                      <td><span className={`badge badge-${u.role === "admin" ? "senior" : "junior"}`}>{u.role}</span></td>
-                      <td style={{ fontSize: 13, color: dark ? "#9ca3af" : "#6b7280" }}>
-                        {u.role === "admin" ? "Full Access" : (groups.find(g => g.id === u.groupId)?.name || "No Group")}
-                      </td>
+                      <td style={{ fontSize: 12, fontFamily: "monospace", letterSpacing: 2, color: dark ? "#4b5563" : "#9ca3af" }}>{'•'.repeat(u.pin?.length || 3)}</td>
                       <td style={{ textAlign: "right" }}>
-                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteUser(u.id)} disabled={u.id === user.id}><Ic name="trash" size={13} /></button>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditUser(u)} title="Edit group"><Ic name="edit" size={13} /></button>
+                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteUser(u.id)} disabled={u.id === user.id} title="Delete group"><Ic name="trash" size={13} /></button>
+                        </div>
                       </td>
                     </tr>
                   ))}
+                  {users.filter(u => u.role !== "admin").length === 0 && (
+                    <tr><td colSpan={4} style={{ textAlign: "center", padding: 32, opacity: 0.5 }}>No groups yet. Add one above.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -365,32 +452,42 @@ const AdminPortal = ({ user, dark, setDark, onBack }) => {
       )}
 
       {userModal && (
-        <Modal title="Create Account" onClose={() => setUserModal(false)}>
-           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div>
-              <label className="label">User Name</label>
-              <input type="text" className="input" placeholder="e.g. Rahul" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} />
+        <Modal title="Add Group" onClose={() => setUserModal(false)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: dark ? "rgba(108,99,255,0.08)" : "rgba(108,99,255,0.05)", border: "1px solid rgba(108,99,255,0.15)", fontSize: 12, color: dark ? "#a78bfa" : "#6c63ff", fontWeight: 600 }}>
+              This group will appear as a login card on the home screen.
             </div>
             <div>
-              <label className="label">Role</label>
-              <select className="input select" value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })}>
-                <option value="leader">Group Leader</option>
-                <option value="admin">Administrator</option>
-              </select>
+              <label className="label">Group Name</label>
+              <input type="text" className="input" placeholder="e.g. Red Eagles, Team Alpha…" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} autoFocus />
             </div>
-            {userForm.role === "leader" && (
-              <div>
-                <label className="label">Assign to Group</label>
-                <select className="input select" value={userForm.groupId} onChange={e => setUserForm({ ...userForm, groupId: e.target.value })}>
-                  {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
-              </div>
-            )}
             <div>
               <label className="label">Login PIN / Password</label>
-              <input type="text" className="input" placeholder="3+ characters" value={userForm.pin} onChange={e => setUserForm({ ...userForm, pin: e.target.value })} />
+              <input type="text" className="input" placeholder="e.g. 1234 or mypass" value={userForm.pin} onChange={e => setUserForm({ ...userForm, pin: e.target.value })} autoComplete="new-password" />
             </div>
-            <button className="btn btn-primary" style={{ width: "100%", height: 48, marginTop: 10 }} onClick={saveUser}>Create User</button>
+            <button className="btn btn-primary" style={{ width: "100%", height: 48, marginTop: 10 }} onClick={saveUser}><Ic name="plus" size={14} />Add Group</button>
+          </div>
+        </Modal>
+      )}
+
+      {editUserModal && editingUser && (
+        <Modal title="Edit Group" onClose={() => { setEditUserModal(false); setEditingUser(null); }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: dark ? "rgba(108,99,255,0.08)" : "rgba(108,99,255,0.05)", border: "1px solid rgba(108,99,255,0.15)", fontSize: 12, color: dark ? "#a78bfa" : "#6c63ff", fontWeight: 600 }}>
+              Editing: <span style={{ fontWeight: 800 }}>{editingUser.name}</span>
+            </div>
+            <div>
+              <label className="label">Group Name</label>
+              <input type="text" className="input" value={editUserForm.name} onChange={e => setEditUserForm({ ...editUserForm, name: e.target.value })} placeholder="Group name" autoFocus />
+            </div>
+            <div>
+              <label className="label">PIN / Password</label>
+              <input type="text" className="input" value={editUserForm.pin} onChange={e => setEditUserForm({ ...editUserForm, pin: e.target.value })} placeholder="New PIN or password" autoComplete="new-password" />
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setEditUserModal(false); setEditingUser(null); }}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveEditUser}><Ic name="check" size={14} />Save Changes</button>
+            </div>
           </div>
         </Modal>
       )}

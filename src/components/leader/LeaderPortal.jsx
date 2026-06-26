@@ -6,9 +6,7 @@ import Modal from "../common/Modal";
 import { CATS, catColor, ACCENT } from "../../styles/DesignTokens";
 
 const LeaderPortal = ({ user, group, dark, setDark, onBack }) => {
-  const { programs, students, setStudents, registrations, setRegistrations, logActivity } = useApp();
-  const [stuModal, setStuModal] = useState(false);
-  const [stuForm, setStuForm] = useState({ name: "", category: "Senior" });
+  const { programs, students, registrations, setRegistrations, logActivity } = useApp();
   const [regModal, setRegModal] = useState(false);
   const [regForm, setRegForm] = useState({ programId: "", participantIds: [] });
   const [editTarget, setEditTarget] = useState(null);
@@ -23,30 +21,6 @@ const LeaderPortal = ({ user, group, dark, setDark, onBack }) => {
     const p = programs.find(pg => pg.id === r.programId);
     return p?.category === catFilter;
   });
-
-  const catBase = { "Sub-Junior": 100, "Junior": 200, "Senior": 300 };
-
-  const saveStudent = () => {
-    if (!stuForm.name.trim()) return;
-    const sId = "s-" + Math.random().toString(36).substr(2, 5);
-    const catStus = groupStudents.filter(s => s.category === stuForm.category);
-    const chest = catBase[stuForm.category] + catStus.length + 1;
-    const newStudent = { id: sId, ...stuForm, chestNo: chest.toString() };
-
-    setStudents(prev => ({ ...prev, [group.id]: [...(prev[group.id] || []), newStudent] }));
-    logActivity(user.name, "Added student", `${newStudent.name} (${newStudent.chestNo}) to ${group.name}`);
-    setStuModal(false); setStuForm({ name: "", category: "Senior" });
-  };
-
-  const deleteStudent = (id) => {
-    const s = groupStudents.find(x => x.id === id);
-    if (registrations.some(r => r.groupId === group.id && r.participantIds.includes(id))) {
-      alert("Cannot delete student with active registrations!");
-      return;
-    }
-    setStudents(prev => ({ ...prev, [group.id]: prev[group.id].filter(s => s.id !== id) }));
-    if (s) logActivity(user.name, "Deleted student", `${s.name} (${s.chestNo}) from ${group.name}`);
-  };
 
   const openReg = (existing = null) => {
     if (existing) {
@@ -103,6 +77,7 @@ const LeaderPortal = ({ user, group, dark, setDark, onBack }) => {
         context={group.name}
         onLogout={onBack}
         verify={(val) => val === user.pin}
+        pinLength={user.pin?.length || 3}
       />
 
       {/* Persistent Smart Filter Bar */}
@@ -130,14 +105,8 @@ const LeaderPortal = ({ user, group, dark, setDark, onBack }) => {
 
       <main className="page" style={{ paddingTop: 20 }}>
         {/* Actions Grid */}
-        <div className="grid-2 anim-fadeUp" style={{ marginBottom: 28 }}>
-          <div className="card" style={{ padding: 20, textAlign: "center", cursor: "pointer", borderBottom: `4px solid ${ACCENT}` }} onClick={() => setStuModal(true)}>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(108,99,255,0.12)", color: ACCENT, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-              <Ic name="plus" size={20} />
-            </div>
-            <div className="ff-display fw-800" style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5 }}>New Student</div>
-          </div>
-          <div className="card" style={{ padding: 20, textAlign: "center", cursor: "pointer", borderBottom: `4px solid #22d3ee` }} onClick={() => openReg()}>
+        <div className="anim-fadeUp" style={{ marginBottom: 28, display: "flex", justifyContent: "center" }}>
+          <div className="card" style={{ padding: 20, textAlign: "center", cursor: "pointer", borderBottom: `4px solid #22d3ee`, width: "100%", maxWidth: 400 }} onClick={() => openReg()}>
             <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(34,211,238,0.12)", color: "#22d3ee", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
               <Ic name="book" size={20} />
             </div>
@@ -154,18 +123,39 @@ const LeaderPortal = ({ user, group, dark, setDark, onBack }) => {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filtStudents.map((s, i) => (
-              <div key={s.id} className="card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: catColor[s.category], opacity: 0.8, width: 34, textAlign: "center", fontFamily: "'Plus Jakarta Sans',sans-serif" }}>{s.chestNo}</div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>{s.name}</div>
-                    <span className={`badge badge-${s.category === "Sub-Junior" ? "sj" : s.category.toLowerCase()}`} style={{ fontSize: 9, padding: "1px 7px", marginTop: 4 }}>{s.category}</span>
+            {(() => {
+              const displayStudents = catFilter === "All" 
+                ? [...filtStudents].sort((a, b) => {
+                    const roleA = a.groupRole || "Member";
+                    const roleB = b.groupRole || "Member";
+                    if (roleA === "Leader" && roleB !== "Leader") return -1;
+                    if (roleB === "Leader" && roleA !== "Leader") return 1;
+                    if (roleA === "Asst. Leader" && roleB !== "Leader" && roleB !== "Asst. Leader") return -1;
+                    if (roleB === "Asst. Leader" && roleA !== "Leader" && roleA !== "Asst. Leader") return 1;
+                    return 0;
+                  })
+                : filtStudents;
+
+              return displayStudents.map((s, i) => (
+                <div key={s.id} className="card" style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: catColor[s.category], opacity: 0.8, width: 34, textAlign: "center", fontFamily: "'Plus Jakarta Sans',sans-serif" }}>{s.chestNo}</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 15 }}>{s.name}</div>
+                      <span className={`badge badge-${s.category === "Sub-Junior" ? "sj" : s.category.toLowerCase()}`} style={{ fontSize: 9, padding: "1px 7px", marginTop: 4 }}>{s.category}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {s.groupRole === "Leader" && (
+                      <span className="badge" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)", fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>★ Leader</span>
+                    )}
+                    {s.groupRole === "Asst. Leader" && (
+                      <span className="badge" style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)", fontSize: 10, fontWeight: 700, padding: "1px 6px" }}>☆ Asst.</span>
+                    )}
                   </div>
                 </div>
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteStudent(s.id)}><Ic name="trash" size={13} /></button>
-              </div>
-            ))}
+              ));
+            })()}
             {filtStudents.length === 0 && (
               <div className="card" style={{ padding: 30, textAlign: "center", opacity: 0.6 }}>
                 <div style={{ fontSize: 24, marginBottom: 8 }}>👥</div>
@@ -220,34 +210,6 @@ const LeaderPortal = ({ user, group, dark, setDark, onBack }) => {
           </div>
         </section>
       </main>
-
-      {/* Add Student Modal */}
-      {stuModal && (
-        <Modal title="Add Team Member" onClose={() => setStuModal(false)}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div>
-              <label className="label">Full Name</label>
-              <input type="text" className="input" placeholder="e.g. John Doe" value={stuForm.name} onChange={e => setStuForm({ ...stuForm, name: e.target.value })} autoFocus />
-            </div>
-            <div>
-              <label className="label">Category</label>
-              <div className="grid-3">
-                {CATS.map(c => (
-                  <button key={c} className="btn" onClick={() => setStuForm({ ...stuForm, category: c })}
-                    style={{
-                      background: stuForm.category === c ? catColor[c] : (dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"),
-                      color: stuForm.category === c ? "white" : (dark ? "#9ca3af" : "#6b7280"),
-                      fontWeight: 700, fontSize: 11,
-                    }}>{c}</button>
-                ))}
-              </div>
-            </div>
-            <button className="btn btn-primary" style={{ width: "100%", height: 48, marginTop: 10 }} onClick={saveStudent}>
-              <Ic name="plus" size={16} />Add to Team
-            </button>
-          </div>
-        </Modal>
-      )}
 
       {/* Registration Modal */}
       {regModal && (

@@ -9,10 +9,44 @@ export const INITIAL_GROUPS = [
 
 export const INITIAL_USERS = [
   { id: "u-admin", name: "System Admin", role: "admin", pin: "admin" },
-  { id: "u-l1", name: "Leader 1", role: "leader", pin: "123", groupId: "g1" },
-  { id: "u-l2", name: "Leader 2", role: "leader", pin: "123", groupId: "g2" },
-  { id: "u-l3", name: "Leader 3", role: "leader", pin: "123", groupId: "g3" },
+  { id: "u-g1", name: "Group 1", role: "group", pin: "123", groupId: "u-g1" },
+  { id: "u-g2", name: "Group 2", role: "group", pin: "123", groupId: "u-g2" },
+  { id: "u-g3", name: "Group 3", role: "group", pin: "123", groupId: "u-g3" },
 ];
+
+// Maps old preset groupIds to display names for migration
+const OLD_GROUP_NAMES = { g1: "Group 1", g2: "Group 2", g3: "Group 3" };
+
+// Migrates stale localStorage users (role:"leader") to new format (role:"group")
+const migrateUsers = (saved) => {
+  return saved.map(u => {
+    if (u.role === "leader") {
+      const name = OLD_GROUP_NAMES[u.groupId] || u.name;
+      return { ...u, role: "group", name, groupId: u.id };
+    }
+    return u;
+  });
+};
+
+const migrateStudents = (saved) => {
+  if (!saved || typeof saved !== "object") return saved;
+  const migrated = {};
+  Object.keys(saved).forEach(key => {
+    const newKey = key === "g1" ? "u-g1" : key === "g2" ? "u-g2" : key === "g3" ? "u-g3" : key;
+    migrated[newKey] = saved[key];
+  });
+  return migrated;
+};
+
+const migrateRegistrations = (saved) => {
+  if (!Array.isArray(saved)) return saved;
+  return saved.map(r => {
+    if (r.groupId === "g1") return { ...r, groupId: "u-g1" };
+    if (r.groupId === "g2") return { ...r, groupId: "u-g2" };
+    if (r.groupId === "g3") return { ...r, groupId: "u-g3" };
+    return r;
+  });
+};
 
 export const INITIAL_PROGRAMS = [
   { id: "p1", name: "Western Music", category: "Senior", type: "Group", maxParticipants: 6, criteria: ["Rhythm", "Harmony"] },
@@ -22,16 +56,16 @@ export const INITIAL_PROGRAMS = [
 ];
 
 export const INITIAL_STUDENTS = {
-  g1: [
-    { id: "s1", name: "Arjun Nair", category: "Senior", chestNo: "301" },
-    { id: "s2", name: "Priya Menon", category: "Junior", chestNo: "201" },
+  "u-g1": [
+    { id: "s1", name: "Arjun Nair", category: "Senior", chestNo: "301", groupRole: "Leader" },
+    { id: "s2", name: "Priya Menon", category: "Junior", chestNo: "201", groupRole: "Asst. Leader" },
   ],
-  g2: [
-    { id: "s3", name: "Rohan Das", category: "Senior", chestNo: "302" },
+  "u-g2": [
+    { id: "s3", name: "Rohan Das", category: "Senior", chestNo: "302", groupRole: "Leader" },
     { id: "s4", name: "Sneha Pillai", category: "Sub-Junior", chestNo: "101" },
   ],
-  g3: [
-    { id: "s5", name: "Kavya Iyer", category: "Junior", chestNo: "202" },
+  "u-g3": [
+    { id: "s5", name: "Kavya Iyer", category: "Junior", chestNo: "202", groupRole: "Leader" },
   ],
 };
 
@@ -51,21 +85,21 @@ export const AppProvider = ({ children }) => {
   const [students, setStudents] = useState(() => {
     try {
       const saved = localStorage.getItem("ff_students");
-      return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+      return saved ? migrateStudents(JSON.parse(saved)) : INITIAL_STUDENTS;
     } catch { return INITIAL_STUDENTS; }
   });
 
   const [registrations, setRegistrations] = useState(() => {
     try {
       const saved = localStorage.getItem("ff_registrations");
-      return saved ? JSON.parse(saved) : INITIAL_REGISTRATIONS;
+      return saved ? migrateRegistrations(JSON.parse(saved)) : INITIAL_REGISTRATIONS;
     } catch { return INITIAL_REGISTRATIONS; }
   });
 
   const [users, setUsers] = useState(() => {
     try {
       const saved = localStorage.getItem("ff_users");
-      return saved ? JSON.parse(saved) : INITIAL_USERS;
+      return saved ? migrateUsers(JSON.parse(saved)) : INITIAL_USERS;
     } catch { return INITIAL_USERS; }
   });
 
@@ -76,7 +110,19 @@ export const AppProvider = ({ children }) => {
     } catch { return []; }
   });
 
-  const [groups] = useState(INITIAL_GROUPS);
+  const GROUP_COLORS = [
+    "#6c63ff", "#22d3ee", "#f472b6", "#34d399",
+    "#fb923c", "#60a5fa", "#a78bfa", "#fbbf24",
+    "#f87171", "#2dd4bf",
+  ];
+
+  const groups = users
+    .filter(u => u.role === "group")
+    .map((u, index) => ({
+      id: u.id,
+      name: u.name,
+      color: u.color || GROUP_COLORS[index % GROUP_COLORS.length]
+    }));
 
   // ── Persistence ──
   useEffect(() => { localStorage.setItem("ff_programs", JSON.stringify(programs)); }, [programs]);

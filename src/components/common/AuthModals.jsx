@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Ic from "./Ic";
 
-export const NumPinModal = ({ title, subtitle, onSuccess, onClose, dark, verify }) => {
+export const NumPinModal = ({ title, subtitle, onSuccess, onClose, dark, verify, pinLength = 3 }) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [shaking, setShaking] = useState(false);
@@ -16,16 +16,12 @@ export const NumPinModal = ({ title, subtitle, onSuccess, onClose, dark, verify 
 
   const handleChange = (e) => {
     const val = e.target.value.replace(/[^0-9]/g, "");
-    setPin(val);
-    // Assuming max PIN length is 4-6, we'll wait for a short duration or manual confirmation?
-    // Actually, for better UX with dynamic users, we might need a "Compare" or fixed length.
-    // Let's assume a standard length of 3-4 for now, or just provide the correct pin length to the modal.
-    // Wait, the previous logic used correctPin.length. I should pass expectedLength or just a 'Submit' button.
-    // Let's go with a fixed length of 3 for Leaders and check it.
+    setPin(val.slice(0, pinLength));
   };
 
   const attempt = (val) => {
-    if (verify(val)) onSuccess();
+    const res = verify(val);
+    if (res) onSuccess(res);
     else {
       setShaking(true); setError(true);
       setTimeout(() => { setPin(""); setError(false); setShaking(false); inputRef.current?.focus(); }, 700);
@@ -33,11 +29,11 @@ export const NumPinModal = ({ title, subtitle, onSuccess, onClose, dark, verify 
   };
 
   useEffect(() => {
-    if (pin.length >= 3) { // Hardcoded 3 for simplicity, or we can make it dynamic
+    if (pin.length >= pinLength) {
       const t = setTimeout(() => attempt(pin), 150);
       return () => clearTimeout(t);
     }
-  }, [pin]);
+  }, [pin, pinLength]);
 
   return (
     <div className="modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -58,7 +54,7 @@ export const NumPinModal = ({ title, subtitle, onSuccess, onClose, dark, verify 
         <div className="text-muted" style={{ fontSize: 13, marginBottom: 4 }}>{subtitle}</div>
         
         <div style={{ display: "flex", justifyContent: "center", gap: 10, margin: "32px 0", animation: shaking ? "shake 0.4s ease" : "none" }}>
-          {Array.from({ length: 3 }).map((_, i) => (
+          {Array.from({ length: pinLength }).map((_, i) => (
             <div key={i} className={`pin-dot ${i < pin.length ? (error ? "error" : "filled") : ""}`} />
           ))}
         </div>
@@ -82,7 +78,8 @@ export const TextPinModal = ({ title, subtitle, onSuccess, onClose, dark, verify
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
 
   const attempt = () => {
-    if (verify(val)) { onSuccess(); }
+    const res = verify(val);
+    if (res) { onSuccess(res); }
     else {
       setError(true);
       setTimeout(() => { setError(false); setVal(""); inputRef.current?.focus(); }, 700);
@@ -106,6 +103,7 @@ export const TextPinModal = ({ title, subtitle, onSuccess, onClose, dark, verify
             onChange={e => { setVal(e.target.value); setError(false); }}
             onKeyDown={e => e.key === "Enter" && attempt()}
             placeholder="Enter password"
+            autoComplete="new-password"
             style={{
               textAlign: "center", fontSize: 16, letterSpacing: show ? 1 : 4,
               borderColor: error ? "#ef4444" : undefined,

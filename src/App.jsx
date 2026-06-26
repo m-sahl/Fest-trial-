@@ -27,15 +27,14 @@ const AppContent = () => {
       <GlobalStyles dark={dark} />
       {!user ? (
         <LandingPage 
-          groups={groups} 
           dark={dark} 
           onLeaderLogin={handleLogin}
           onAdminClick={handleLogin}
         />
-      ) : user.role === "leader" ? (
+      ) : user.role === "group" ? (
         <LeaderPortal 
           user={user}
-          group={groups.find(g => g.id === user.groupId)} 
+          group={groups.find(g => g.id === user.groupId) || { id: user.groupId, name: user.name, color: "#6c63ff" }} 
           dark={dark} 
           setDark={setDark} 
           onBack={handleLogout} 
